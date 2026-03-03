@@ -12,7 +12,6 @@ public class AppMain implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) throws Exception {
 
-        System.out.println("intentado enviar mail..");
         // MailClase.sendMailAlert("123456");
         //System.out.println("enviado mail...");
         // System.out.println("Iniciando prueba de lectura de JSON...");

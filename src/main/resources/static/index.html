@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Decodificador de Archivos Web</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --primary-hover: #4338CA;
+            --bg: #0F172A;
+            --surface: #1E293B;
+            --surface-hover: #334155;
+            --text: #F8FAFC;
+            --text-muted: #94A3B8;
+            --danger: #EF4444;
+            --danger-hover: #DC2626;
+            --border: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(12px);
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            background: linear-gradient(to right, #818CF8, #C084FC);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        main {
+            padding: 2rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .controls-panel {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            align-items: center;
+        }
+
+        .file-upload-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .btn {
+            background: var(--surface-hover);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .btn:hover {
+            background: var(--border);
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            border-color: var(--primary-hover);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border-color: rgba(239, 68, 68, 0.2);
+            margin-left: auto;
+        }
+
+        .btn-danger:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-label {
+            cursor: pointer;
+        }
+
+        .status-badge {
+            font-size: 0.875rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            background: rgba(52, 211, 153, 0.1);
+            color: #34D399;
+            display: none;
+        }
+
+        .status-badge.visible {
+            display: inline-block;
+        }
+
+        .content-area-wrapper {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+            flex: 1;
+            min-height: 0;
+            /* Important for scroll */
+        }
+
+        .section {
+            background: var(--surface);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            height: 500px;
+        }
+
+        .section-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            background: rgba(15, 23, 42, 0.3);
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-header-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: 4px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .icon-btn:hover {
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Section States */
+        .section.minimized {
+            height: auto;
+        }
+
+        .section.minimized .section-body {
+            display: none;
+        }
+
+        .section-body {
+            padding: 1rem;
+            flex: 1;
+            overflow: auto;
+            position: relative;
+        }
+
+        /* String view specific */
+        .string-view {
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            color: #E2E8F0;
+            white-space: pre-wrap;
+        }
+
+        /* Table view specific */
+        .table-container {
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th,
+        td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            white-space: nowrap;
+        }
+
+        th:last-child,
+        td:last-child {
+            border-right: none;
+        }
+
+        th {
+            background: rgba(30, 41, 59, 0.95);
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            font-weight: 500;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        td {
+            font-family: monospace;
+            font-size: 0.875rem;
+        }
+
+        /* Optional loading state */
+        .loading {
+            position: absolute;
+            inset: 0;
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            z-index: 20;
+        }
+
+        .loading.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748B;
+        }
+
+        .line-input {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.7rem 1rem;
+            border-radius: 6px;
+            width: 100px;
+            font-family: monospace;
+        }
+
+        .line-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--surface);
+            color: var(--text);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 50;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>Web Decoder</h1>
+    </header>
+
+    <main>
+        <div class="controls-panel">
+            <div class="file-upload-wrapper">
+                <input type="file" id="fileInput">
+                <label for="fileInput" class="btn btn-primary file-label">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    Cargar Archivo
+                </label>
+                <span id="fileNameDisplay" class="text-muted" style="font-size: 0.875rem;">Ningún archivo
+                    seleccionado</span>
+                <span id="statusBadge" class="status-badge">✔ En Memoria</span>
+            </div>
+
+            <div style="width: 1px; height: 30px; background: var(--border); margin: 0 0.5rem;"></div>
+
+            <button id="btnDecodeAll" class="btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="16 18 22 12 16 6"></polyline>
+                    <polyline points="8 6 2 12 8 18"></polyline>
+                </svg>
+                Decodificar Completo
+            </button>
+
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <input type="number" id="lineNumberInput" class="line-input" placeholder="Línea Ej: 1" min="0"
+                    value="1">
+                <button id="btnDecodeLine" class="btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="3" y1="9" x2="21" y2="9"></line>
+                        <line x1="9" y1="21" x2="9" y2="9"></line>
+                    </svg>
+                    Decodificar Línea
+                </button>
+            </div>
+
+            <button id="btnClear" class="btn btn-danger">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+                Borrar Todo
+            </button>
+        </div>
+
+        <div class="content-area-wrapper">
+            <!-- Full String View Section -->
+            <div class="section" id="stringSection">
+                <div class="section-header">
+                    <span>Vista Completa (String)</span>
+                    <div class="section-header-actions">
+                        <button id="toggleStringSectionBtn" class="icon-btn" title="Minimizar/Maximizar">
+                            <svg id="toggleIcon" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="section-body">
+                    <div id="loadingString" class="loading">
+                        <div class="spinner"></div>
+                    </div>
+                    <div id="stringView" class="string-view">Cargue un archivo y seleccione "Decodificar Completo" para
+                        ver los resultados aquí.</div>
+                </div>
+            </div>
+
+            <!-- Table View Section -->
+            <div class="section">
+                <div class="section-header">Vista Tabular (30 Columnas Fijas)</div>
+                <div class="section-body">
+                    <div id="loadingTable" class="loading">
+                        <div class="spinner"></div>
+                    </div>
+                    <div class="table-container">
+                        <table id="dataTable">
+                            <thead>
+                                <tr id="tableHeader">
+                                    <!-- Headers generated by JS -->
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody">
+                                <!-- Dynamic rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="toast" class="toast">Mensaje de notificación</div>
+
+    <script>
+        // DOM Elements
+        const fileInput = document.getElementById('fileInput');
+        const fileLabel = document.querySelector('.file-label');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const statusBadge = document.getElementById('statusBadge');
+
+        const btnDecodeAll = document.getElementById('btnDecodeAll');
+        const btnDecodeLine = document.getElementById('btnDecodeLine');
+        const btnClear = document.getElementById('btnClear');
+        const lineNumberInput = document.getElementById('lineNumberInput');
+
+        const stringView = document.getElementById('stringView');
+        const tableHeader = document.getElementById('tableHeader');
+        const tableBody = document.getElementById('tableBody');
+
+        const loadingString = document.getElementById('loadingString');
+        const loadingTable = document.getElementById('loadingTable');
+        const toast = document.getElementById('toast');
+
+        const stringSection = document.getElementById('stringSection');
+        const toggleStringSectionBtn = document.getElementById('toggleStringSectionBtn');
+        const toggleIcon = document.getElementById('toggleIcon');
+
+        // Initialize Table Headers (30 columns)
+        for (let i = 1; i <= 30; i++) {
+            const th = document.createElement('th');
+            th.textContent = `Col ${i}`;
+            tableHeader.appendChild(th);
+        }
+
+        // Show Toast
+        function showToast(message, isError = false) {
+            toast.textContent = message;
+            toast.style.borderLeftColor = isError ? 'var(--danger)' : 'var(--primary)';
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Make toggle functionality work and load state from localStorage
+        function updateToggleIcon(isMinimized) {
+            if (isMinimized) {
+                // Return up chevron (collapsed)
+                toggleIcon.innerHTML = '<polyline points="18 15 12 9 6 15"></polyline>';
+            } else {
+                // Return down chevron (expanded)
+                toggleIcon.innerHTML = '<polyline points="6 9 12 15 18 9"></polyline>';
+            }
+        }
+
+        const isStringSectionMinimized = localStorage.getItem('stringSectionMinimized') === 'true';
+        if (isStringSectionMinimized) {
+            stringSection.classList.add('minimized');
+            updateToggleIcon(true);
+        }
+
+        toggleStringSectionBtn.addEventListener('click', () => {
+            stringSection.classList.toggle('minimized');
+            const isMinimized = stringSection.classList.contains('minimized');
+            localStorage.setItem('stringSectionMinimized', isMinimized);
+            updateToggleIcon(isMinimized);
+        });
+
+        // Handle File Upload
+        fileInput.addEventListener('change', async (e) => {
+            if (!e.target.files.length) return;
+
+            const file = e.target.files[0];
+            fileNameDisplay.textContent = file.name;
+            statusBadge.classList.remove('visible');
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fileLabel.style.opacity = '0.5';
+            fileLabel.style.pointerEvents = 'none';
+
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    statusBadge.classList.add('visible');
+                    showToast(`Archivo cargado en memoria (${result.totalLines} líneas)`);
+                    stringView.textContent = "Archivo en memoria. Presione descodificar.";
+                    tableBody.innerHTML = '';
+                    lineNumberInput.value = '1';
+                } else {
+                    showToast(result.message || 'Error al cargar', true);
+                }
+            } catch (err) {
+                showToast('Error de conexión con el servidor', true);
+                console.error(err);
+            } finally {
+                fileLabel.style.opacity = '1';
+                fileLabel.style.pointerEvents = 'auto';
+            }
+        });
+
+        // Decode All (String View)
+        btnDecodeAll.addEventListener('click', async () => {
+            loadingString.classList.add('active');
+
+            try {
+                const response = await fetch('/api/decode-all');
+                if (response.ok) {
+                    const lines = await response.json();
+                    if (lines.length === 0) {
+                        stringView.textContent = "El archivo está vacío o no se ha cargado ninguno.";
+                    } else {
+                        stringView.textContent = lines.join('\n');
+                        showToast(`Mostrando ${lines.length} líneas.`);
+                    }
+                } else {
+                    const error = await response.json();
+                    showToast(error.message || 'Error al decodificar', true);
+                }
+            } catch (err) {
+                showToast('Error de conexión', true);
+            } finally {
+                loadingString.classList.remove('active');
+            }
+        });
+
+        // Decode Specific Line (Table View)
+        btnDecodeLine.addEventListener('click', async () => {
+            loadingTable.classList.add('active');
+            const lineNumber = lineNumberInput.value;
+            let url = '/api/decode-line';
+            if (lineNumber !== "") {
+                url += `?lineNumber=${lineNumber}`;
+            }
+
+            try {
+                const response = await fetch(url);
+                if (response.ok) {
+                    const rowsData = await response.json();
+
+                    // Render table
+                    tableBody.innerHTML = '';
+                    if (rowsData.length === 0) {
+                        tableBody.innerHTML = '<tr><td colspan="30" style="text-align:center">No hay datos</td></tr>';
+                    } else {
+                        // Optimizing DOM updates by using a DocumentFragment
+                        const fragment = document.createDocumentFragment();
+                        rowsData.forEach(rowData => {
+                            const tr = document.createElement('tr');
+                            rowData.forEach(cellData => {
+                                const td = document.createElement('td');
+                                td.textContent = cellData;
+                                tr.appendChild(td);
+                            });
+                            fragment.appendChild(tr);
+                        });
+                        tableBody.appendChild(fragment);
+                    }
+                    if (lineNumber !== "") {
+                        showToast(`Decodificada la línea ${lineNumber}`);
+                    } else {
+                        showToast(`Todas las líneas decodificadas en tabla.`);
+                    }
+                } else {
+                    const error = await response.json();
+                    showToast(error.message || 'Error al decodificar', true);
+                }
+            } catch (err) {
+                showToast('Error de conexión', true);
+            } finally {
+                loadingTable.classList.remove('active');
+            }
+        });
+
+        // Clear All
+        btnClear.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/clear', { method: 'POST' });
+                if (response.ok) {
+                    // Reset UI
+                    fileInput.value = '';
+                    fileNameDisplay.textContent = 'Ningún archivo seleccionado';
+                    statusBadge.classList.remove('visible');
+                    stringView.textContent = 'Cargue un archivo y seleccione "Decodificar Completo" para ver los resultados aquí.';
+                    tableBody.innerHTML = '';
+                    lineNumberInput.value = '1';
+                    showToast('Memoria limpiada de vuelta al original');
+                }
+            } catch (err) {
+                showToast('Error al limpiar', true);
+            }
+        });
+
+    </script>
+</body>
+
+</html>
