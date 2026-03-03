@@ -219,12 +219,30 @@
 
         /* String view specific */
         .string-view {
-            padding: 1rem;
+            padding: 0;
             font-family: monospace;
             font-size: 0.875rem;
             line-height: 1.5;
             color: #E2E8F0;
-            white-space: pre-wrap;
+            white-space: pre;
+            display: flex;
+        }
+
+        .line-numbers {
+            padding: 1rem 0.5rem 1rem 1rem;
+            text-align: right;
+            border-right: 1px solid var(--border);
+            color: var(--text-muted);
+            user-select: none;
+            background: rgba(15, 23, 42, 0.2);
+            min-width: 3.5rem;
+            opacity: 0.6;
+        }
+
+        .string-content {
+            padding: 1rem;
+            flex: 1;
+            overflow-x: auto;
         }
 
         /* Table view specific */
@@ -439,8 +457,11 @@
                     <div id="loadingString" class="loading">
                         <div class="spinner"></div>
                     </div>
-                    <div id="stringView" class="string-view">Cargue un archivo y seleccione "Decodificar Completo" para
-                        ver los resultados aquí.</div>
+                    <div id="stringView" class="string-view">
+                        <div class="line-numbers" id="lineNumbers"></div>
+                        <div class="string-content" id="stringContent">Cargue un archivo y seleccione "Decodificar
+                            Completo" para ver los resultados aquí.</div>
+                    </div>
                 </div>
             </div>
 
@@ -482,7 +503,8 @@
         const btnClear = document.getElementById('btnClear');
         const lineNumberInput = document.getElementById('lineNumberInput');
 
-        const stringView = document.getElementById('stringView');
+        const stringContent = document.getElementById('stringContent');
+        const lineNumbers = document.getElementById('lineNumbers');
         const tableHeader = document.getElementById('tableHeader');
         const tableBody = document.getElementById('tableBody');
 
@@ -494,7 +516,13 @@
         const toggleStringSectionBtn = document.getElementById('toggleStringSectionBtn');
         const toggleIcon = document.getElementById('toggleIcon');
 
-        // Initialize Table Headers (30 columns)
+        // Initialize Table Headers (Line Counter + 30 columns)
+        const thLine = document.createElement('th');
+        thLine.textContent = 'Línea';
+        thLine.style.width = '60px';
+        thLine.style.color = 'var(--primary)';
+        tableHeader.appendChild(thLine);
+
         for (let i = 1; i <= 30; i++) {
             const th = document.createElement('th');
             th.textContent = `Col ${i}`;
@@ -558,7 +586,8 @@
                 if (response.ok) {
                     statusBadge.classList.add('visible');
                     showToast(`Archivo cargado en memoria (${result.totalLines} líneas)`);
-                    stringView.textContent = "Archivo en memoria. Presione descodificar.";
+                    stringContent.textContent = "Archivo en memoria. Presione descodificar.";
+                    lineNumbers.textContent = "";
                     tableBody.innerHTML = '';
                     lineNumberInput.value = '1';
                 } else {
@@ -582,9 +611,13 @@
                 if (response.ok) {
                     const lines = await response.json();
                     if (lines.length === 0) {
-                        stringView.textContent = "El archivo está vacío o no se ha cargado ninguno.";
+                        stringContent.textContent = "El archivo está vacío o no se ha cargado ninguno.";
+                        lineNumbers.textContent = "";
                     } else {
-                        stringView.textContent = lines.join('\n');
+                        stringContent.textContent = lines.join('\n');
+                        // Generate line numbers
+                        const nums = Array.from({ length: lines.length }, (_, i) => i + 1).join('\n');
+                        lineNumbers.textContent = nums;
                         showToast(`Mostrando ${lines.length} líneas.`);
                     }
                 } else {
@@ -619,8 +652,17 @@
                     } else {
                         // Optimizing DOM updates by using a DocumentFragment
                         const fragment = document.createDocumentFragment();
-                        rowsData.forEach(rowData => {
+                        const startLineNum = (lineNumber !== "" && !isNaN(lineNumber)) ? parseInt(lineNumber) : 1;
+                        rowsData.forEach((rowData, index) => {
                             const tr = document.createElement('tr');
+
+                            // Add Line Number Cell
+                            const tdLine = document.createElement('td');
+                            tdLine.textContent = startLineNum + index;
+                            tdLine.style.color = 'var(--text-muted)';
+                            tdLine.style.borderRight = '1px solid var(--border)';
+                            tr.appendChild(tdLine);
+
                             rowData.forEach(cellData => {
                                 const td = document.createElement('td');
                                 td.textContent = cellData;
@@ -655,7 +697,8 @@
                     fileInput.value = '';
                     fileNameDisplay.textContent = 'Ningún archivo seleccionado';
                     statusBadge.classList.remove('visible');
-                    stringView.textContent = 'Cargue un archivo y seleccione "Decodificar Completo" para ver los resultados aquí.';
+                    stringContent.textContent = 'Cargue un archivo y seleccione "Decodificar Completo" para ver los resultados aquí.';
+                    lineNumbers.textContent = "";
                     tableBody.innerHTML = '';
                     lineNumberInput.value = '1';
                     showToast('Memoria limpiada de vuelta al original');
